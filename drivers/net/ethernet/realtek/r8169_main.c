@@ -1308,10 +1308,6 @@ static void rtl_irq_disable(struct rtl8169_private *tp)
 	tp->irq_enabled = 0;
 }
 
-#define RTL_EVENT_NAPI_RX	(RxOK | RxErr)
-#define RTL_EVENT_NAPI_TX	(TxOK | TxErr)
-#define RTL_EVENT_NAPI		(RTL_EVENT_NAPI_RX | RTL_EVENT_NAPI_TX)
-
 static void rtl_irq_enable(struct rtl8169_private *tp)
 {
 	tp->irq_enabled = 1;
@@ -4091,12 +4087,10 @@ static int rtl8169_xmit_frags(struct rtl8169_private *tp, struct sk_buff *skb,
 		tp->tx_skb[entry].len = len;
 	}
 
-	if (cur_frag) {
-		tp->tx_skb[entry].skb = skb;
-		txd->opts1 |= cpu_to_le32(LastFrag);
-	}
+	tp->tx_skb[entry].skb = skb;
+	txd->opts1 |= cpu_to_le32(LastFrag);
 
-	return cur_frag;
+	return 0;
 
 err_out:
 	rtl8169_tx_clear_range(tp, tp->cur_tx + 1, cur_frag);
@@ -4106,29 +4100,6 @@ err_out:
 static bool rtl_test_hw_pad_bug(struct rtl8169_private *tp, struct sk_buff *skb)
 {
 	return skb->len < ETH_ZLEN && tp->mac_version == RTL_GIGA_MAC_VER_34;
-}
-
-/* msdn_giant_send_check()
- * According to the document of microsoft, the TCP Pseudo Header excludes the
- * packet length for IPv6 TCP large packets.
- */
-static int msdn_giant_send_check(struct sk_buff *skb)
-{
-	const struct ipv6hdr *ipv6h;
-	struct tcphdr *th;
-	int ret;
-
-	ret = skb_cow_head(skb, 0);
-	if (ret)
-		return ret;
-
-	ipv6h = ipv6_hdr(skb);
-	th = tcp_hdr(skb);
-
-	th->check = 0;
-	th->check = ~tcp_v6_check(0, &ipv6h->saddr, &ipv6h->daddr, 0);
-
-	return ret;
 }
 
 static void rtl8169_tso_csum_v1(struct sk_buff *skb, u32 *opts)
@@ -4163,9 +4134,10 @@ static bool rtl8169_tso_csum_v2(struct rtl8169_private *tp,
 			break;
 
 		case htons(ETH_P_IPV6):
-			if (msdn_giant_send_check(skb))
+			if (skb_cow_head(skb, 0))
 				return false;
 
+			tcp_v6_gso_csum_prep(skb);
 			opts[0] |= TD1_GTSENV6;
 			break;
 
@@ -4243,6 +4215,7 @@ static void rtl8169_doorbell(struct rtl8169_private *tp)
 static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 				      struct net_device *dev)
 {
+	unsigned int frags = skb_shinfo(skb)->nr_frags;
 	struct rtl8169_private *tp = netdev_priv(dev);
 	unsigned int entry = tp->cur_tx % NUM_TX_DESC;
 	struct TxDesc *txd = tp->TxDescArray + entry;
@@ -4251,9 +4224,8 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	u32 opts[2], len;
 	bool stop_queue;
 	bool door_bell;
-	int frags;
 
-	if (unlikely(!rtl_tx_slots_avail(tp, skb_shinfo(skb)->nr_frags))) {
+	if (unlikely(!rtl_tx_slots_avail(tp, frags))) {
 		netif_err(tp, drv, dev, "BUG! Tx Ring full when queue awake!\n");
 		goto err_stop_0;
 	}
@@ -4282,14 +4254,13 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	tp->tx_skb[entry].len = len;
 	txd->addr = cpu_to_le64(mapping);
 
-	frags = rtl8169_xmit_frags(tp, skb, opts);
-	if (frags < 0)
-		goto err_dma_1;
-	else if (frags)
-		opts[0] |= FirstFrag;
-	else {
+	if (!frags) {
 		opts[0] |= FirstFrag | LastFrag;
 		tp->tx_skb[entry].skb = skb;
+	} else {
+		if (rtl8169_xmit_frags(tp, skb, opts))
+			goto err_dma_1;
+		opts[0] |= FirstFrag;
 	}
 
 	txd->opts2 = cpu_to_le32(opts[1]);
@@ -5135,7 +5106,7 @@ static const struct net_device_ops rtl_netdev_ops = {
 
 static void rtl_set_irq_mask(struct rtl8169_private *tp)
 {
-	tp->irq_mask = RTL_EVENT_NAPI | LinkChg;
+	tp->irq_mask = RxOK | RxErr | TxOK | TxErr | LinkChg;
 
 	if (tp->mac_version <= RTL_GIGA_MAC_VER_06)
 		tp->irq_mask |= SYSErr | RxOverflow | RxFIFOOver;
