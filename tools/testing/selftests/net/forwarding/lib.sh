@@ -60,6 +60,15 @@ check_tc_chain_support()
 	fi
 }
 
+check_tc_action_hw_stats_support()
+{
+	tc actions help 2>&1 | grep -q hw_stats
+	if [[ $? -ne 0 ]]; then
+		echo "SKIP: iproute2 too old; tc is missing action hw_stats support"
+		exit 1
+	fi
+}
+
 if [[ "$(id -u)" -ne 0 ]]; then
 	echo "SKIP: need root privileges"
 	exit 0
@@ -277,11 +286,11 @@ wait_for_offload()
 
 until_counter_is()
 {
-	local value=$1; shift
+	local expr=$1; shift
 	local current=$("$@")
 
 	echo $((current))
-	((current >= value))
+	((current $expr))
 }
 
 busywait_for_counter()
@@ -290,7 +299,7 @@ busywait_for_counter()
 	local delta=$1; shift
 
 	local base=$("$@")
-	busywait "$timeout" until_counter_is $((base + delta)) "$@"
+	busywait "$timeout" until_counter_is ">= $((base + delta))" "$@"
 }
 
 setup_wait_dev()
@@ -626,6 +635,17 @@ tc_rule_stats_get()
 	    | jq ".[1].options.actions[].stats$selector"
 }
 
+tc_rule_handle_stats_get()
+{
+	local id=$1; shift
+	local handle=$1; shift
+	local selector=${1:-.packets}; shift
+
+	tc -j -s filter show $id \
+	    | jq ".[] | select(.options.handle == $handle) | \
+		  .options.actions[0].stats$selector"
+}
+
 ethtool_stats_get()
 {
 	local dev=$1; shift
@@ -642,6 +662,16 @@ qdisc_stats_get()
 
 	tc -j -s qdisc show dev "$dev" \
 	    | jq '.[] | select(.handle == "'"$handle"'") | '"$selector"
+}
+
+qdisc_parent_stats_get()
+{
+	local dev=$1; shift
+	local parent=$1; shift
+	local selector=$1; shift
+
+	tc -j -s qdisc show dev "$dev" invisible \
+	    | jq '.[] | select(.parent == "'"$parent"'") | '"$selector"
 }
 
 humanize()

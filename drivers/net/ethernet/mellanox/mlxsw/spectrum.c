@@ -1783,6 +1783,8 @@ static int mlxsw_sp_setup_tc(struct net_device *dev, enum tc_setup_type type,
 		return mlxsw_sp_setup_tc_ets(mlxsw_sp_port, type_data);
 	case TC_SETUP_QDISC_TBF:
 		return mlxsw_sp_setup_tc_tbf(mlxsw_sp_port, type_data);
+	case TC_SETUP_QDISC_FIFO:
+		return mlxsw_sp_setup_tc_fifo(mlxsw_sp_port, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -5419,8 +5421,13 @@ static int mlxsw_sp1_resources_register(struct mlxsw_core *mlxsw_core)
 	if (err)
 		goto err_resources_span_register;
 
+	err = mlxsw_sp_counter_resources_register(mlxsw_core);
+	if (err)
+		goto err_resources_counter_register;
+
 	return 0;
 
+err_resources_counter_register:
 err_resources_span_register:
 	devlink_resources_unregister(priv_to_devlink(mlxsw_core), NULL);
 	return err;
@@ -5438,8 +5445,13 @@ static int mlxsw_sp2_resources_register(struct mlxsw_core *mlxsw_core)
 	if (err)
 		goto err_resources_span_register;
 
+	err = mlxsw_sp_counter_resources_register(mlxsw_core);
+	if (err)
+		goto err_resources_counter_register;
+
 	return 0;
 
+err_resources_counter_register:
 err_resources_span_register:
 	devlink_resources_unregister(priv_to_devlink(mlxsw_core), NULL);
 	return err;

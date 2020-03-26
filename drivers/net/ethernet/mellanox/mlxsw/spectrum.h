@@ -46,6 +46,10 @@
 
 #define MLXSW_SP_RESOURCE_NAME_SPAN "span_agents"
 
+#define MLXSW_SP_RESOURCE_NAME_COUNTERS "counters"
+#define MLXSW_SP_RESOURCE_NAME_COUNTERS_FLOW "flow"
+#define MLXSW_SP_RESOURCE_NAME_COUNTERS_RIF "rif"
+
 enum mlxsw_sp_resource_id {
 	MLXSW_SP_RESOURCE_KVD = 1,
 	MLXSW_SP_RESOURCE_KVD_LINEAR,
@@ -55,6 +59,9 @@ enum mlxsw_sp_resource_id {
 	MLXSW_SP_RESOURCE_KVD_LINEAR_CHUNKS,
 	MLXSW_SP_RESOURCE_KVD_LINEAR_LARGE_CHUNKS,
 	MLXSW_SP_RESOURCE_SPAN,
+	MLXSW_SP_RESOURCE_COUNTERS,
+	MLXSW_SP_RESOURCE_COUNTERS_FLOW,
+	MLXSW_SP_RESOURCE_COUNTERS_RIF,
 };
 
 struct mlxsw_sp_port;
@@ -139,6 +146,7 @@ struct mlxsw_sp_port_type_speed_ops;
 struct mlxsw_sp_ptp_state;
 struct mlxsw_sp_ptp_ops;
 struct mlxsw_sp_span_ops;
+struct mlxsw_sp_qdisc_state;
 
 struct mlxsw_sp_port_mapping {
 	u8 module;
@@ -276,8 +284,7 @@ struct mlxsw_sp_port {
 	struct mlxsw_sp_port_sample *sample;
 	struct list_head vlans_list;
 	struct mlxsw_sp_port_vlan *default_vlan;
-	struct mlxsw_sp_qdisc *root_qdisc;
-	struct mlxsw_sp_qdisc *tclass_qdiscs;
+	struct mlxsw_sp_qdisc_state *qdisc;
 	unsigned acl_rule_count;
 	struct mlxsw_sp_acl_block *ing_acl_block;
 	struct mlxsw_sp_acl_block *eg_acl_block;
@@ -641,7 +648,8 @@ struct mlxsw_sp_acl_rule_info {
 	struct mlxsw_afa_block *act_block;
 	u8 action_created:1,
 	   ingress_bind_blocker:1,
-	   egress_bind_blocker:1;
+	   egress_bind_blocker:1,
+	   counter_valid:1;
 	unsigned int counter_index;
 };
 
@@ -738,6 +746,9 @@ int mlxsw_sp_acl_rulei_act_vlan(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_acl_rule_info *rulei,
 				u32 action, u16 vid, u16 proto, u8 prio,
 				struct netlink_ext_ack *extack);
+int mlxsw_sp_acl_rulei_act_priority(struct mlxsw_sp *mlxsw_sp,
+				    struct mlxsw_sp_acl_rule_info *rulei,
+				    u32 prio, struct netlink_ext_ack *extack);
 int mlxsw_sp_acl_rulei_act_count(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_rule_info *rulei,
 				 struct netlink_ext_ack *extack);
@@ -867,6 +878,8 @@ int mlxsw_sp_setup_tc_ets(struct mlxsw_sp_port *mlxsw_sp_port,
 			  struct tc_ets_qopt_offload *p);
 int mlxsw_sp_setup_tc_tbf(struct mlxsw_sp_port *mlxsw_sp_port,
 			  struct tc_tbf_qopt_offload *p);
+int mlxsw_sp_setup_tc_fifo(struct mlxsw_sp_port *mlxsw_sp_port,
+			   struct tc_fifo_qopt_offload *p);
 
 /* spectrum_fid.c */
 bool mlxsw_sp_fid_is_dummy(struct mlxsw_sp *mlxsw_sp, u16 fid_index);

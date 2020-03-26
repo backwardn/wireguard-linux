@@ -638,12 +638,35 @@ int mlxsw_sp_acl_rulei_act_vlan(struct mlxsw_sp *mlxsw_sp,
 	}
 }
 
+int mlxsw_sp_acl_rulei_act_priority(struct mlxsw_sp *mlxsw_sp,
+				    struct mlxsw_sp_acl_rule_info *rulei,
+				    u32 prio, struct netlink_ext_ack *extack)
+{
+	/* Even though both Linux and Spectrum switches support 16 priorities,
+	 * spectrum_qdisc only processes the first eight priomap elements, and
+	 * the DCB and PFC features are tied to 8 priorities as well. Therefore
+	 * bounce attempts to prioritize packets to higher priorities.
+	 */
+	if (prio >= IEEE_8021QAZ_MAX_TCS) {
+		NL_SET_ERR_MSG_MOD(extack, "Only priorities 0..7 are supported");
+		return -EINVAL;
+	}
+	return mlxsw_afa_block_append_qos_switch_prio(rulei->act_block, prio,
+						      extack);
+}
+
 int mlxsw_sp_acl_rulei_act_count(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_rule_info *rulei,
 				 struct netlink_ext_ack *extack)
 {
-	return mlxsw_afa_block_append_counter(rulei->act_block,
-					      &rulei->counter_index, extack);
+	int err;
+
+	err = mlxsw_afa_block_append_counter(rulei->act_block,
+					     &rulei->counter_index, extack);
+	if (err)
+		return err;
+	rulei->counter_valid = true;
+	return 0;
 }
 
 int mlxsw_sp_acl_rulei_act_fid_set(struct mlxsw_sp *mlxsw_sp,
@@ -857,16 +880,18 @@ int mlxsw_sp_acl_rule_get_stats(struct mlxsw_sp *mlxsw_sp,
 
 {
 	struct mlxsw_sp_acl_rule_info *rulei;
-	u64 current_packets;
-	u64 current_bytes;
+	u64 current_packets = 0;
+	u64 current_bytes = 0;
 	int err;
 
 	rulei = mlxsw_sp_acl_rule_rulei(rule);
-	err = mlxsw_sp_flow_counter_get(mlxsw_sp, rulei->counter_index,
-					&current_packets, &current_bytes);
-	if (err)
-		return err;
-
+	if (rulei->counter_valid) {
+		err = mlxsw_sp_flow_counter_get(mlxsw_sp, rulei->counter_index,
+						&current_packets,
+						&current_bytes);
+		if (err)
+			return err;
+	}
 	*packets = current_packets - rule->last_packets;
 	*bytes = current_bytes - rule->last_bytes;
 	*last_use = rule->last_used;
