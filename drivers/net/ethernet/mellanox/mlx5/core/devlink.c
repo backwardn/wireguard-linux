@@ -23,7 +23,10 @@ static int mlx5_devlink_flash_update(struct devlink *devlink,
 	if (err)
 		return err;
 
-	return mlx5_firmware_flash(dev, fw, extack);
+	err = mlx5_firmware_flash(dev, fw, extack);
+	release_firmware(fw);
+
+	return err;
 }
 
 static u8 mlx5_fw_ver_major(u32 version)
@@ -90,7 +93,8 @@ static int mlx5_devlink_reload_down(struct devlink *devlink, bool netns_change,
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 
-	return mlx5_unload_one(dev, false);
+	mlx5_unload_one(dev, false);
+	return 0;
 }
 
 static int mlx5_devlink_reload_up(struct devlink *devlink,

@@ -708,7 +708,7 @@ static void tc_indr_block_call(struct tcf_block *block,
 	};
 	INIT_LIST_HEAD(&bo.cb_list);
 
-	flow_indr_block_call(dev, &bo, command);
+	flow_indr_block_call(dev, &bo, command, TC_SETUP_BLOCK);
 	tcf_block_setup(block, &bo);
 }
 
@@ -1667,6 +1667,7 @@ int tcf_classify_ingress(struct sk_buff *skb,
 		skb_ext_del(skb, TC_SKB_EXT);
 
 		tp = rcu_dereference_bh(fchain->filter_chain);
+		last_executed_chain = fchain->index;
 	}
 
 	ret = __tcf_classify(skb, tp, orig_tp, res, compat_mode,

@@ -468,12 +468,15 @@ struct ocelot_ops {
 struct ocelot_acl_block {
 	struct list_head rules;
 	int count;
+	int pol_lpr;
 };
 
 struct ocelot_port {
 	struct ocelot			*ocelot;
 
 	void __iomem			*regs;
+
+	bool				vlan_aware;
 
 	/* Ingress default VLAN (pvid) */
 	u16				pvid;
@@ -517,6 +520,11 @@ struct ocelot {
 	 */
 	u8				num_phys_ports;
 
+	int				npi;
+
+	enum ocelot_tag_prefix		inj_prefix;
+	enum ocelot_tag_prefix		xtr_prefix;
+
 	u32				*lags;
 
 	struct list_head		multicast;
@@ -541,6 +549,11 @@ struct ocelot {
 	struct mutex			ptp_lock;
 	/* Protects the PTP clock */
 	spinlock_t			ptp_clock_lock;
+};
+
+struct ocelot_policer {
+	u32 rate; /* kilobit per second */
+	u32 burst; /* bytes */
 };
 
 #define ocelot_read_ix(ocelot, reg, gi, ri) __ocelot_read_ix(ocelot, reg, reg##_GSZ * (gi) + reg##_RSZ * (ri))
@@ -599,7 +612,7 @@ int ocelot_port_bridge_leave(struct ocelot *ocelot, int port,
 int ocelot_fdb_dump(struct ocelot *ocelot, int port,
 		    dsa_fdb_dump_cb_t *cb, void *data);
 int ocelot_fdb_add(struct ocelot *ocelot, int port,
-		   const unsigned char *addr, u16 vid, bool vlan_aware);
+		   const unsigned char *addr, u16 vid);
 int ocelot_fdb_del(struct ocelot *ocelot, int port,
 		   const unsigned char *addr, u16 vid);
 int ocelot_vlan_add(struct ocelot *ocelot, int port, u16 vid, bool pvid,
@@ -611,6 +624,11 @@ int ocelot_ptp_gettime64(struct ptp_clock_info *ptp, struct timespec64 *ts);
 int ocelot_port_add_txtstamp_skb(struct ocelot_port *ocelot_port,
 				 struct sk_buff *skb);
 void ocelot_get_txtstamp(struct ocelot *ocelot);
+void ocelot_port_set_maxlen(struct ocelot *ocelot, int port, size_t sdu);
+int ocelot_get_max_mtu(struct ocelot *ocelot, int port);
+int ocelot_port_policer_add(struct ocelot *ocelot, int port,
+			    struct ocelot_policer *pol);
+int ocelot_port_policer_del(struct ocelot *ocelot, int port);
 int ocelot_cls_flower_replace(struct ocelot *ocelot, int port,
 			      struct flow_cls_offload *f, bool ingress);
 int ocelot_cls_flower_destroy(struct ocelot *ocelot, int port,
