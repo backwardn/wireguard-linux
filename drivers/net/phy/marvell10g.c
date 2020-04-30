@@ -246,7 +246,8 @@ static int mv3310_power_up(struct phy_device *phydev)
 	ret = phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2, MV_V2_PORT_CTRL,
 				 MV_V2_PORT_CTRL_PWRDOWN);
 
-	if (priv->firmware_ver < 0x00030000)
+	if (phydev->drv->phy_id != MARVELL_PHY_ID_88X3310 ||
+	    priv->firmware_ver < 0x00030000)
 		return ret;
 
 	return phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MV_V2_PORT_CTRL,
@@ -727,7 +728,6 @@ static struct phy_driver mv3310_drivers[] = {
 		.phy_id_mask	= MARVELL_PHY_ID_MASK,
 		.name		= "mv88x3310",
 		.get_features	= mv3310_get_features,
-		.soft_reset	= genphy_no_soft_reset,
 		.config_init	= mv3310_config_init,
 		.probe		= mv3310_probe,
 		.suspend	= mv3310_suspend,
@@ -745,7 +745,6 @@ static struct phy_driver mv3310_drivers[] = {
 		.probe		= mv3310_probe,
 		.suspend	= mv3310_suspend,
 		.resume		= mv3310_resume,
-		.soft_reset	= genphy_no_soft_reset,
 		.config_init	= mv3310_config_init,
 		.config_aneg	= mv3310_config_aneg,
 		.aneg_done	= mv3310_aneg_done,
