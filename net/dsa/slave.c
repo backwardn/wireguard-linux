@@ -314,7 +314,7 @@ static int dsa_slave_vlan_add(struct net_device *dev,
 	if (obj->orig_dev != dev)
 		return -EOPNOTSUPP;
 
-	if (dp->bridge_dev && !br_vlan_enabled(dp->bridge_dev))
+	if (dsa_port_skip_vlan_configuration(dp))
 		return 0;
 
 	vlan = *SWITCHDEV_OBJ_PORT_VLAN(obj);
@@ -381,7 +381,7 @@ static int dsa_slave_vlan_del(struct net_device *dev,
 	if (obj->orig_dev != dev)
 		return -EOPNOTSUPP;
 
-	if (dp->bridge_dev && !br_vlan_enabled(dp->bridge_dev))
+	if (dsa_port_skip_vlan_configuration(dp))
 		return 0;
 
 	/* Do not deprogram the CPU port as it may be shared with other user
@@ -445,12 +445,11 @@ static inline netdev_tx_t dsa_slave_netpoll_send_skb(struct net_device *dev,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct dsa_slave_priv *p = netdev_priv(dev);
 
-	if (p->netpoll)
-		netpoll_send_skb(p->netpoll, skb);
+	return netpoll_send_skb(p->netpoll, skb);
 #else
 	BUG();
-#endif
 	return NETDEV_TX_OK;
+#endif
 }
 
 static void dsa_skb_tx_timestamp(struct dsa_slave_priv *p,
@@ -911,13 +910,13 @@ dsa_slave_add_cls_matchall_police(struct net_device *dev,
 
 	if (!ds->ops->port_policer_add) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Policing offload not implemented\n");
+				   "Policing offload not implemented");
 		return -EOPNOTSUPP;
 	}
 
 	if (!ingress) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Only supported on ingress qdisc\n");
+				   "Only supported on ingress qdisc");
 		return -EOPNOTSUPP;
 	}
 
@@ -928,7 +927,7 @@ dsa_slave_add_cls_matchall_police(struct net_device *dev,
 	list_for_each_entry(mall_tc_entry, &p->mall_tc_list, list) {
 		if (mall_tc_entry->type == DSA_PORT_MALL_POLICER) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Only one port policer allowed\n");
+					   "Only one port policer allowed");
 			return -EEXIST;
 		}
 	}
@@ -1241,7 +1240,7 @@ static int dsa_slave_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
 	 * need to emulate the switchdev prepare + commit phase.
 	 */
 	if (dp->bridge_dev) {
-		if (!br_vlan_enabled(dp->bridge_dev))
+		if (dsa_port_skip_vlan_configuration(dp))
 			return 0;
 
 		/* br_vlan_get_info() returns -EINVAL or -ENOENT if the
@@ -1275,7 +1274,7 @@ static int dsa_slave_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
 	 * need to emulate the switchdev prepare + commit phase.
 	 */
 	if (dp->bridge_dev) {
-		if (!br_vlan_enabled(dp->bridge_dev))
+		if (dsa_port_skip_vlan_configuration(dp))
 			return 0;
 
 		/* br_vlan_get_info() returns -EINVAL or -ENOENT if the
@@ -1747,6 +1746,7 @@ int dsa_slave_create(struct dsa_port *port)
 	if (ds->ops->port_vlan_add && ds->ops->port_vlan_del)
 		slave_dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 	slave_dev->hw_features |= NETIF_F_HW_TC;
+	slave_dev->features |= NETIF_F_LLTX;
 	slave_dev->ethtool_ops = &dsa_slave_ethtool_ops;
 	if (!IS_ERR_OR_NULL(port->mac))
 		ether_addr_copy(slave_dev->dev_addr, port->mac);

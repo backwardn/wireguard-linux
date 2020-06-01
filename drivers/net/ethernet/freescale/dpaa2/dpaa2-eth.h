@@ -310,6 +310,11 @@ enum dpaa2_eth_fq_type {
 
 struct dpaa2_eth_priv;
 
+struct dpaa2_eth_xdp_fds {
+	struct dpaa2_fd fds[DEV_MAP_BULK_SIZE];
+	ssize_t num;
+};
+
 struct dpaa2_eth_fq {
 	u32 fqid;
 	u32 tx_qdbin;
@@ -328,7 +333,8 @@ struct dpaa2_eth_fq {
 			struct dpaa2_eth_fq *fq);
 	struct dpaa2_eth_fq_stats stats;
 
-	struct dpaa2_fd xdp_fds[DEV_MAP_BULK_SIZE];
+	struct dpaa2_eth_xdp_fds xdp_redirect_fds;
+	struct dpaa2_eth_xdp_fds xdp_tx_fds;
 };
 
 struct dpaa2_eth_ch_xdp {
@@ -388,6 +394,7 @@ struct dpaa2_eth_priv {
 	u16 tx_data_offset;
 
 	struct fsl_mc_device *dpbp_dev;
+	u16 rx_buf_size;
 	u16 bpid;
 	struct iommu_domain *iommu_domain;
 

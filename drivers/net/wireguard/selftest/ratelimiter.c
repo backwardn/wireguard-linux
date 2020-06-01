@@ -30,9 +30,8 @@ static __init unsigned int maximum_jiffies_at_index(int index)
 	return msecs_to_jiffies(total_msecs);
 }
 
-static __init int timings_test(struct sk_buff *skb4, struct iphdr *hdr4,
-			       struct sk_buff *skb6, struct ipv6hdr *hdr6,
-			       int *test)
+static __init int timings_test(struct sk_buff *skb4, struct iphdr *hdr4, struct sk_buff *skb6,
+			       struct ipv6hdr *hdr6, int *test)
 {
 	unsigned long loop_start_time;
 	int i;
@@ -45,17 +44,14 @@ static __init int timings_test(struct sk_buff *skb4, struct iphdr *hdr4,
 		if (expected_results[i].msec_to_sleep_before)
 			msleep(expected_results[i].msec_to_sleep_before);
 
-		if (time_is_before_jiffies(loop_start_time +
-					   maximum_jiffies_at_index(i)))
+		if (time_is_before_jiffies(loop_start_time + maximum_jiffies_at_index(i)))
 			return -ETIMEDOUT;
-		if (wg_ratelimiter_allow(skb4, &init_net) !=
-					expected_results[i].result)
+		if (wg_ratelimiter_allow(skb4, &init_net) != expected_results[i].result)
 			return -EXFULL;
 		++(*test);
 
 		hdr4->saddr = htonl(ntohl(hdr4->saddr) + i + 1);
-		if (time_is_before_jiffies(loop_start_time +
-					   maximum_jiffies_at_index(i)))
+		if (time_is_before_jiffies(loop_start_time + maximum_jiffies_at_index(i)))
 			return -ETIMEDOUT;
 		if (!wg_ratelimiter_allow(skb4, &init_net))
 			return -EXFULL;
@@ -66,36 +62,29 @@ static __init int timings_test(struct sk_buff *skb4, struct iphdr *hdr4,
 #if IS_ENABLED(CONFIG_IPV6)
 		hdr6->saddr.in6_u.u6_addr32[2] = htonl(i);
 		hdr6->saddr.in6_u.u6_addr32[3] = htonl(i);
-		if (time_is_before_jiffies(loop_start_time +
-					   maximum_jiffies_at_index(i)))
+		if (time_is_before_jiffies(loop_start_time + maximum_jiffies_at_index(i)))
 			return -ETIMEDOUT;
-		if (wg_ratelimiter_allow(skb6, &init_net) !=
-					expected_results[i].result)
+		if (wg_ratelimiter_allow(skb6, &init_net) != expected_results[i].result)
 			return -EXFULL;
 		++(*test);
 
-		hdr6->saddr.in6_u.u6_addr32[0] =
-			htonl(ntohl(hdr6->saddr.in6_u.u6_addr32[0]) + i + 1);
-		if (time_is_before_jiffies(loop_start_time +
-					   maximum_jiffies_at_index(i)))
+		hdr6->saddr.in6_u.u6_addr32[0] = htonl(ntohl(hdr6->saddr.in6_u.u6_addr32[0]) + i + 1);
+		if (time_is_before_jiffies(loop_start_time + maximum_jiffies_at_index(i)))
 			return -ETIMEDOUT;
 		if (!wg_ratelimiter_allow(skb6, &init_net))
 			return -EXFULL;
 		++(*test);
 
-		hdr6->saddr.in6_u.u6_addr32[0] =
-			htonl(ntohl(hdr6->saddr.in6_u.u6_addr32[0]) - i - 1);
+		hdr6->saddr.in6_u.u6_addr32[0] = htonl(ntohl(hdr6->saddr.in6_u.u6_addr32[0]) - i - 1);
 
-		if (time_is_before_jiffies(loop_start_time +
-					   maximum_jiffies_at_index(i)))
+		if (time_is_before_jiffies(loop_start_time + maximum_jiffies_at_index(i)))
 			return -ETIMEDOUT;
 #endif
 	}
 	return 0;
 }
 
-static __init int capacity_test(struct sk_buff *skb4, struct iphdr *hdr4,
-				int *test)
+static __init int capacity_test(struct sk_buff *skb4, struct iphdr *hdr4, int *test)
 {
 	int i;
 

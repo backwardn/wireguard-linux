@@ -17,8 +17,8 @@
 #include <net/udp_tunnel.h>
 #include <net/ipv6.h>
 
-static int send4(struct wg_device *wg, struct sk_buff *skb,
-		 struct endpoint *endpoint, u8 ds, struct dst_cache *cache)
+static int send4(struct wg_device *wg, struct sk_buff *skb, struct endpoint *endpoint, u8 ds,
+		 struct dst_cache *cache)
 {
 	struct flowi4 fl = {
 		.saddr = endpoint->src4.s_addr,
@@ -50,8 +50,7 @@ static int send4(struct wg_device *wg, struct sk_buff *skb,
 
 	if (!rt) {
 		security_sk_classify_flow(sock, flowi4_to_flowi(&fl));
-		if (unlikely(!inet_confirm_addr(sock_net(sock), NULL, 0,
-						fl.saddr, RT_SCOPE_HOST))) {
+		if (unlikely(!inet_confirm_addr(sock_net(sock), NULL, 0, fl.saddr, RT_SCOPE_HOST))) {
 			endpoint->src4.s_addr = 0;
 			*(__force __be32 *)&endpoint->src_if4 = 0;
 			fl.saddr = 0;
@@ -59,9 +58,8 @@ static int send4(struct wg_device *wg, struct sk_buff *skb,
 				dst_cache_reset(cache);
 		}
 		rt = ip_route_output_flow(sock_net(sock), &fl, sock);
-		if (unlikely(endpoint->src_if4 && ((IS_ERR(rt) &&
-			     PTR_ERR(rt) == -EINVAL) || (!IS_ERR(rt) &&
-			     rt->dst.dev->ifindex != endpoint->src_if4)))) {
+		if (unlikely(endpoint->src_if4 && ((IS_ERR(rt) && PTR_ERR(rt) == -EINVAL) ||
+			     (!IS_ERR(rt) && rt->dst.dev->ifindex != endpoint->src_if4)))) {
 			endpoint->src4.s_addr = 0;
 			*(__force __be32 *)&endpoint->src_if4 = 0;
 			fl.saddr = 0;
@@ -82,9 +80,8 @@ static int send4(struct wg_device *wg, struct sk_buff *skb,
 	}
 
 	skb->ignore_df = 1;
-	udp_tunnel_xmit_skb(rt, sock, skb, fl.saddr, fl.daddr, ds,
-			    ip4_dst_hoplimit(&rt->dst), 0, fl.fl4_sport,
-			    fl.fl4_dport, false, false);
+	udp_tunnel_xmit_skb(rt, sock, skb, fl.saddr, fl.daddr, ds, ip4_dst_hoplimit(&rt->dst), 0,
+			    fl.fl4_sport, fl.fl4_dport, false, false);
 	goto out;
 
 err:
@@ -94,8 +91,8 @@ out:
 	return ret;
 }
 
-static int send6(struct wg_device *wg, struct sk_buff *skb,
-		 struct endpoint *endpoint, u8 ds, struct dst_cache *cache)
+static int send6(struct wg_device *wg, struct sk_buff *skb, struct endpoint *endpoint, u8 ds,
+		 struct dst_cache *cache)
 {
 #if IS_ENABLED(CONFIG_IPV6)
 	struct flowi6 fl = {
@@ -130,14 +127,13 @@ static int send6(struct wg_device *wg, struct sk_buff *skb,
 
 	if (!dst) {
 		security_sk_classify_flow(sock, flowi6_to_flowi(&fl));
-		if (unlikely(!ipv6_addr_any(&fl.saddr) &&
-			     !ipv6_chk_addr(sock_net(sock), &fl.saddr, NULL, 0))) {
+		if (unlikely(!ipv6_addr_any(&fl.saddr) && !ipv6_chk_addr(sock_net(sock), &fl.saddr,
+									 NULL, 0))) {
 			endpoint->src6 = fl.saddr = in6addr_any;
 			if (cache)
 				dst_cache_reset(cache);
 		}
-		dst = ipv6_stub->ipv6_dst_lookup_flow(sock_net(sock), sock, &fl,
-						      NULL);
+		dst = ipv6_stub->ipv6_dst_lookup_flow(sock_net(sock), sock, &fl, NULL);
 		if (unlikely(IS_ERR(dst))) {
 			ret = PTR_ERR(dst);
 			net_dbg_ratelimited("%s: No route to %pISpfsc, error %d\n",
@@ -150,8 +146,7 @@ static int send6(struct wg_device *wg, struct sk_buff *skb,
 
 	skb->ignore_df = 1;
 	udp_tunnel6_xmit_skb(dst, sock, skb, skb->dev, &fl.saddr, &fl.daddr, ds,
-			     ip6_dst_hoplimit(dst), 0, fl.fl6_sport,
-			     fl.fl6_dport, false);
+			     ip6_dst_hoplimit(dst), 0, fl.fl6_sport, fl.fl6_dport, false);
 	goto out;
 
 err:
@@ -171,11 +166,9 @@ int wg_socket_send_skb_to_peer(struct wg_peer *peer, struct sk_buff *skb, u8 ds)
 
 	read_lock_bh(&peer->endpoint_lock);
 	if (peer->endpoint.addr.sa_family == AF_INET)
-		ret = send4(peer->device, skb, &peer->endpoint, ds,
-			    &peer->endpoint_cache);
+		ret = send4(peer->device, skb, &peer->endpoint, ds, &peer->endpoint_cache);
 	else if (peer->endpoint.addr.sa_family == AF_INET6)
-		ret = send6(peer->device, skb, &peer->endpoint, ds,
-			    &peer->endpoint_cache);
+		ret = send6(peer->device, skb, &peer->endpoint, ds, &peer->endpoint_cache);
 	else
 		dev_kfree_skb(skb);
 	if (likely(!ret))
@@ -185,8 +178,7 @@ int wg_socket_send_skb_to_peer(struct wg_peer *peer, struct sk_buff *skb, u8 ds)
 	return ret;
 }
 
-int wg_socket_send_buffer_to_peer(struct wg_peer *peer, void *buffer,
-				  size_t len, u8 ds)
+int wg_socket_send_buffer_to_peer(struct wg_peer *peer, void *buffer, size_t len, u8 ds)
 {
 	struct sk_buff *skb = alloc_skb(len + SKB_HEADER_LEN, GFP_ATOMIC);
 
@@ -199,8 +191,7 @@ int wg_socket_send_buffer_to_peer(struct wg_peer *peer, void *buffer,
 	return wg_socket_send_skb_to_peer(peer, skb, ds);
 }
 
-int wg_socket_send_buffer_as_reply_to_skb(struct wg_device *wg,
-					  struct sk_buff *in_skb, void *buffer,
+int wg_socket_send_buffer_as_reply_to_skb(struct wg_device *wg, struct sk_buff *in_skb, void *buffer,
 					  size_t len)
 {
 	int ret = 0;
@@ -224,15 +215,12 @@ int wg_socket_send_buffer_as_reply_to_skb(struct wg_device *wg,
 		ret = send4(wg, skb, &endpoint, 0, NULL);
 	else if (endpoint.addr.sa_family == AF_INET6)
 		ret = send6(wg, skb, &endpoint, 0, NULL);
-	/* No other possibilities if the endpoint is valid, which it is,
-	 * as we checked above.
-	 */
+	/* No other possibilities if the endpoint is valid, which it is, as we checked above. */
 
 	return ret;
 }
 
-int wg_socket_endpoint_from_skb(struct endpoint *endpoint,
-				const struct sk_buff *skb)
+int wg_socket_endpoint_from_skb(struct endpoint *endpoint, const struct sk_buff *skb)
 {
 	memset(endpoint, 0, sizeof(*endpoint));
 	if (skb->protocol == htons(ETH_P_IP)) {
@@ -245,8 +233,7 @@ int wg_socket_endpoint_from_skb(struct endpoint *endpoint,
 		endpoint->addr6.sin6_family = AF_INET6;
 		endpoint->addr6.sin6_port = udp_hdr(skb)->source;
 		endpoint->addr6.sin6_addr = ipv6_hdr(skb)->saddr;
-		endpoint->addr6.sin6_scope_id = ipv6_iface_scope_id(
-			&ipv6_hdr(skb)->saddr, skb->skb_iif);
+		endpoint->addr6.sin6_scope_id = ipv6_iface_scope_id(&ipv6_hdr(skb)->saddr, skb->skb_iif);
 		endpoint->src6 = ipv6_hdr(skb)->daddr;
 	} else {
 		return -EINVAL;
@@ -260,8 +247,7 @@ static bool endpoint_eq(const struct endpoint *a, const struct endpoint *b)
 		a->addr4.sin_port == b->addr4.sin_port &&
 		a->addr4.sin_addr.s_addr == b->addr4.sin_addr.s_addr &&
 		a->src4.s_addr == b->src4.s_addr && a->src_if4 == b->src_if4) ||
-	       (a->addr.sa_family == AF_INET6 &&
-		b->addr.sa_family == AF_INET6 &&
+	       (a->addr.sa_family == AF_INET6 && b->addr.sa_family == AF_INET6 &&
 		a->addr6.sin6_port == b->addr6.sin6_port &&
 		ipv6_addr_equal(&a->addr6.sin6_addr, &b->addr6.sin6_addr) &&
 		a->addr6.sin6_scope_id == b->addr6.sin6_scope_id &&
@@ -269,13 +255,11 @@ static bool endpoint_eq(const struct endpoint *a, const struct endpoint *b)
 	       unlikely(!a->addr.sa_family && !b->addr.sa_family);
 }
 
-void wg_socket_set_peer_endpoint(struct wg_peer *peer,
-				 const struct endpoint *endpoint)
+void wg_socket_set_peer_endpoint(struct wg_peer *peer, const struct endpoint *endpoint)
 {
-	/* First we check unlocked, in order to optimize, since it's pretty rare
-	 * that an endpoint will change. If we happen to be mid-write, and two
-	 * CPUs wind up writing the same thing or something slightly different,
-	 * it doesn't really matter much either.
+	/* First we check unlocked, in order to optimize, since it's pretty rare that an endpoint
+	 * will change. If we happen to be mid-write, and two CPUs wind up writing the same thing or
+	 * something slightly different, it doesn't really matter much either.
 	 */
 	if (endpoint_eq(endpoint, &peer->endpoint))
 		return;
@@ -295,8 +279,7 @@ out:
 	write_unlock_bh(&peer->endpoint_lock);
 }
 
-void wg_socket_set_peer_endpoint_from_skb(struct wg_peer *peer,
-					  const struct sk_buff *skb)
+void wg_socket_set_peer_endpoint_from_skb(struct wg_peer *peer, const struct sk_buff *skb)
 {
 	struct endpoint endpoint;
 
@@ -410,10 +393,8 @@ void wg_socket_reinit(struct wg_device *wg, struct sock *new4,
 	struct sock *old4, *old6;
 
 	mutex_lock(&wg->socket_update_lock);
-	old4 = rcu_dereference_protected(wg->sock4,
-				lockdep_is_held(&wg->socket_update_lock));
-	old6 = rcu_dereference_protected(wg->sock6,
-				lockdep_is_held(&wg->socket_update_lock));
+	old4 = rcu_dereference_protected(wg->sock4, lockdep_is_held(&wg->socket_update_lock));
+	old6 = rcu_dereference_protected(wg->sock6, lockdep_is_held(&wg->socket_update_lock));
 	rcu_assign_pointer(wg->sock4, new4);
 	rcu_assign_pointer(wg->sock6, new6);
 	if (new4)

@@ -32,7 +32,7 @@ enum cookie_values {
 };
 
 enum counter_values {
-	COUNTER_BITS_TOTAL = 2048,
+	COUNTER_BITS_TOTAL = 8192,
 	COUNTER_REDUNDANT_BITS = BITS_PER_LONG,
 	COUNTER_WINDOW_SIZE = COUNTER_BITS_TOTAL - COUNTER_REDUNDANT_BITS
 };
@@ -66,8 +66,8 @@ struct message_header {
 	 * u8 type
 	 * u8 reserved_zero[3]
 	 *
-	 * But it turns out that by encoding this as little endian,
-	 * we achieve the same thing, and it makes checking faster.
+	 * But it turns out that by encoding this as little endian, we achieve the same thing, and
+	 * it makes checking faster.
 	 */
 	__le32 type;
 };
@@ -109,8 +109,7 @@ struct message_data {
 	u8 encrypted_data[];
 };
 
-#define message_data_len(plain_len) \
-	(noise_encrypted_len(plain_len) + sizeof(struct message_data))
+#define message_data_len(plain_len) (noise_encrypted_len(plain_len) + sizeof(struct message_data))
 
 enum message_alignments {
 	MESSAGE_PADDING_MULTIPLE = 16,
@@ -120,8 +119,7 @@ enum message_alignments {
 #define SKB_HEADER_LEN                                       \
 	(max(sizeof(struct iphdr), sizeof(struct ipv6hdr)) + \
 	 sizeof(struct udphdr) + NET_SKB_PAD)
-#define DATA_PACKET_HEAD_ROOM \
-	ALIGN(sizeof(struct message_data) + SKB_HEADER_LEN, 4)
+#define DATA_PACKET_HEAD_ROOM ALIGN(sizeof(struct message_data) + SKB_HEADER_LEN, 4)
 
 enum { HANDSHAKE_DSCP = 0x88 /* AF41, plus 00 ECN */ };
 

@@ -1445,9 +1445,6 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	bd_num += ret;
 
-	if (!skb_has_frag_list(skb))
-		goto out;
-
 	skb_walk_frags(skb, frag_skb) {
 		ret = hns3_fill_skb_to_desc(ring, frag_skb,
 					    DESC_TYPE_FRAGLIST_SKB);
@@ -1456,7 +1453,7 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 		bd_num += ret;
 	}
-out:
+
 	pre_ntu = ring->next_to_use ? (ring->next_to_use - 1) :
 					(ring->desc_num - 1);
 	ring->desc[pre_ntu].tx.bdtp_fe_sc_vld_ra_ri |=
@@ -1545,12 +1542,6 @@ static int hns3_nic_set_features(struct net_device *netdev,
 		ret = h->ae_algo->ops->set_gro_en(h, enable);
 		if (ret)
 			return ret;
-	}
-
-	if ((changed & NETIF_F_HW_VLAN_CTAG_FILTER) &&
-	    h->ae_algo->ops->enable_vlan_filter) {
-		enable = !!(features & NETIF_F_HW_VLAN_CTAG_FILTER);
-		h->ae_algo->ops->enable_vlan_filter(h, enable);
 	}
 
 	if ((changed & NETIF_F_HW_VLAN_CTAG_RX) &&

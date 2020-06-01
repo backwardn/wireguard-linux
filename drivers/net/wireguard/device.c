@@ -35,9 +35,8 @@ static int wg_open(struct net_device *dev)
 	int ret;
 
 	if (dev_v4) {
-		/* At some point we might put this check near the ip_rt_send_
-		 * redirect call of ip_forward in net/ipv4/ip_forward.c, similar
-		 * to the current secpath check.
+		/* At some point we might put this check near the ip_rt_send_ redirect call of
+		 * ip_forward in net/ipv4/ip_forward.c, similar to the current secpath check.
 		 */
 		IN_DEV_CONF_SET(dev_v4, SEND_REDIRECTS, false);
 		IPV4_DEVCONF_ALL(dev_net(dev), SEND_REDIRECTS) = false;
@@ -59,15 +58,13 @@ static int wg_open(struct net_device *dev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int wg_pm_notification(struct notifier_block *nb, unsigned long action,
-			      void *data)
+static int wg_pm_notification(struct notifier_block *nb, unsigned long action, void *data)
 {
 	struct wg_device *wg;
 	struct wg_peer *peer;
 
-	/* If the machine is constantly suspending and resuming, as part of
-	 * its normal operation rather than as a somewhat rare event, then we
-	 * don't actually want to clear keys.
+	/* If the machine is constantly suspending and resuming, as part of its normal operation
+	 * rather than as a somewhat rare event, then we don't actually want to clear keys.
 	 */
 	if (IS_ENABLED(CONFIG_PM_AUTOSLEEP) || IS_ENABLED(CONFIG_ANDROID))
 		return 0;
@@ -171,8 +168,8 @@ static netdev_tx_t wg_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (unlikely(!skb))
 			continue;
 
-		/* We only need to keep the original dst around for icmp,
-		 * so at this point we're in a position to drop it.
+		/* We only need to keep the original dst around for icmp, so at this point we're in
+		 * a position to drop it.
 		 */
 		skb_dst_drop(skb);
 
@@ -182,9 +179,9 @@ static netdev_tx_t wg_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	spin_lock_bh(&peer->staged_packet_queue.lock);
-	/* If the queue is getting too big, we start removing the oldest packets
-	 * until it's small again. We do this before adding the new packet, so
-	 * we don't remove GSO segments that are in excess.
+	/* If the queue is getting too big, we start removing the oldest packets until it's small
+	 * again. We do this before adding the new packet, so we don't remove GSO segments that are
+	 * in excess.
 	 */
 	while (skb_queue_len(&peer->staged_packet_queue) > MAX_STAGED_PACKETS) {
 		dev_kfree_skb(__skb_dequeue(&peer->staged_packet_queue));
@@ -255,8 +252,7 @@ static const struct device_type device_type = { .name = KBUILD_MODNAME };
 static void wg_setup(struct net_device *dev)
 {
 	struct wg_device *wg = netdev_priv(dev);
-	enum { WG_NETDEV_FEATURES = NETIF_F_HW_CSUM | NETIF_F_RXCSUM |
-				    NETIF_F_SG | NETIF_F_GSO |
+	enum { WG_NETDEV_FEATURES = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO |
 				    NETIF_F_GSO_SOFTWARE | NETIF_F_HIGHDMA };
 	const int overhead = MESSAGE_MINIMUM_LENGTH + sizeof(struct udphdr) +
 			     max(sizeof(struct ipv6hdr), sizeof(struct iphdr));
@@ -285,9 +281,8 @@ static void wg_setup(struct net_device *dev)
 	wg->dev = dev;
 }
 
-static int wg_newlink(struct net *src_net, struct net_device *dev,
-		      struct nlattr *tb[], struct nlattr *data[],
-		      struct netlink_ext_ack *extack)
+static int wg_newlink(struct net *src_net, struct net_device *dev, struct nlattr *tb[],
+		      struct nlattr *data[], struct netlink_ext_ack *extack)
 {
 	struct wg_device *wg = netdev_priv(dev);
 	int ret = -ENOMEM;
@@ -314,34 +309,32 @@ static int wg_newlink(struct net *src_net, struct net_device *dev,
 	if (!dev->tstats)
 		goto err_free_index_hashtable;
 
-	wg->incoming_handshakes_worker =
-		wg_packet_percpu_multicore_worker_alloc(
-				wg_packet_handshake_receive_worker, wg);
+	wg->incoming_handshakes_worker = wg_packet_percpu_multicore_worker_alloc(
+							wg_packet_handshake_receive_worker, wg);
 	if (!wg->incoming_handshakes_worker)
 		goto err_free_tstats;
 
-	wg->handshake_receive_wq = alloc_workqueue("wg-kex-%s",
-			WQ_CPU_INTENSIVE | WQ_FREEZABLE, 0, dev->name);
+	wg->handshake_receive_wq = alloc_workqueue("wg-kex-%s",	WQ_CPU_INTENSIVE | WQ_FREEZABLE, 0,
+						   dev->name);
 	if (!wg->handshake_receive_wq)
 		goto err_free_incoming_handshakes;
 
-	wg->handshake_send_wq = alloc_workqueue("wg-kex-%s",
-			WQ_UNBOUND | WQ_FREEZABLE, 0, dev->name);
+	wg->handshake_send_wq = alloc_workqueue("wg-kex-%s", WQ_UNBOUND | WQ_FREEZABLE, 0, dev->name);
 	if (!wg->handshake_send_wq)
 		goto err_destroy_handshake_receive;
 
-	wg->packet_crypt_wq = alloc_workqueue("wg-crypt-%s",
-			WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 0, dev->name);
+	wg->packet_crypt_wq = alloc_workqueue("wg-crypt-%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM, 0,
+					      dev->name);
 	if (!wg->packet_crypt_wq)
 		goto err_destroy_handshake_send;
 
-	ret = wg_packet_queue_init(&wg->encrypt_queue, wg_packet_encrypt_worker,
-				   true, MAX_QUEUED_PACKETS);
+	ret = wg_packet_queue_init(&wg->encrypt_queue, wg_packet_encrypt_worker, true,
+				   MAX_QUEUED_PACKETS);
 	if (ret < 0)
 		goto err_destroy_packet_crypt;
 
-	ret = wg_packet_queue_init(&wg->decrypt_queue, wg_packet_decrypt_worker,
-				   true, MAX_QUEUED_PACKETS);
+	ret = wg_packet_queue_init(&wg->decrypt_queue, wg_packet_decrypt_worker, true,
+				   MAX_QUEUED_PACKETS);
 	if (ret < 0)
 		goto err_free_encrypt_queue;
 
@@ -355,8 +348,8 @@ static int wg_newlink(struct net *src_net, struct net_device *dev,
 
 	list_add(&wg->device_list, &device_list);
 
-	/* We wait until the end to assign priv_destructor, so that
-	 * register_netdevice doesn't call it for us if it fails.
+	/* We wait until the end to assign priv_destructor, so that register_netdevice doesn't call
+	 * it for us if it fails.
 	 */
 	dev->priv_destructor = wg_destruct;
 
@@ -393,8 +386,7 @@ static struct rtnl_link_ops link_ops __read_mostly = {
 	.newlink		= wg_newlink,
 };
 
-static int wg_netdevice_notification(struct notifier_block *nb,
-				     unsigned long action, void *data)
+static int wg_netdevice_notification(struct notifier_block *nb, unsigned long action, void *data)
 {
 	struct net_device *dev = ((struct netdev_notifier_info *)data)->dev;
 	struct wg_device *wg = netdev_priv(dev);
@@ -407,17 +399,14 @@ static int wg_netdevice_notification(struct notifier_block *nb,
 	if (dev_net(dev) == wg->creating_net && wg->have_creating_net_ref) {
 		put_net(wg->creating_net);
 		wg->have_creating_net_ref = false;
-	} else if (dev_net(dev) != wg->creating_net &&
-		   !wg->have_creating_net_ref) {
+	} else if (dev_net(dev) != wg->creating_net && !wg->have_creating_net_ref) {
 		wg->have_creating_net_ref = true;
 		get_net(wg->creating_net);
 	}
 	return 0;
 }
 
-static struct notifier_block netdevice_notifier = {
-	.notifier_call = wg_netdevice_notification
-};
+static struct notifier_block netdevice_notifier = { .notifier_call = wg_netdevice_notification };
 
 int __init wg_device_init(void)
 {

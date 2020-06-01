@@ -46,7 +46,7 @@ static const u32 cmdq_reg_addr_list[] = {HCLGEVF_CMDQ_TX_ADDR_L_REG,
 					 HCLGEVF_CMDQ_RX_TAIL_REG,
 					 HCLGEVF_CMDQ_RX_HEAD_REG,
 					 HCLGEVF_VECTOR0_CMDQ_SRC_REG,
-					 HCLGEVF_CMDQ_INTR_STS_REG,
+					 HCLGEVF_VECTOR0_CMDQ_STATE_REG,
 					 HCLGEVF_CMDQ_INTR_EN_REG,
 					 HCLGEVF_CMDQ_INTR_GEN_REG};
 
@@ -669,8 +669,8 @@ static int hclgevf_set_rss_tc_mode(struct hclgevf_dev *hdev,  u16 rss_size)
 	u16 tc_size[HCLGEVF_MAX_TC_NUM];
 	struct hclgevf_desc desc;
 	u16 roundup_size;
-	int status;
 	unsigned int i;
+	int status;
 
 	req = (struct hclgevf_rss_tc_mode_cmd *)desc.data;
 
@@ -1143,7 +1143,6 @@ static int hclgevf_cmd_set_promisc_mode(struct hclgevf_dev *hdev,
 	send_msg.en_mc = en_mc_pmc ? 1 : 0;
 
 	ret = hclgevf_send_mbx_msg(hdev, &send_msg, false, NULL, 0);
-
 	if (ret)
 		dev_err(&hdev->pdev->dev,
 			"Set promisc mode fail, status is %d.\n", ret);
@@ -1826,7 +1825,7 @@ static void hclgevf_dump_rst_info(struct hclgevf_dev *hdev)
 	dev_info(&hdev->pdev->dev, "vector0 interrupt enable status: 0x%x\n",
 		 hclgevf_read_dev(&hdev->hw, HCLGEVF_MISC_VECTOR_REG_BASE));
 	dev_info(&hdev->pdev->dev, "vector0 interrupt status: 0x%x\n",
-		 hclgevf_read_dev(&hdev->hw, HCLGEVF_VECTOR0_CMDQ_STAT_REG));
+		 hclgevf_read_dev(&hdev->hw, HCLGEVF_VECTOR0_CMDQ_STATE_REG));
 	dev_info(&hdev->pdev->dev, "handshake status: 0x%x\n",
 		 hclgevf_read_dev(&hdev->hw, HCLGEVF_CMDQ_TX_DEPTH_REG));
 	dev_info(&hdev->pdev->dev, "function reset status: 0x%x\n",
@@ -2250,7 +2249,7 @@ static enum hclgevf_evt_cause hclgevf_check_evt_cause(struct hclgevf_dev *hdev,
 
 	/* fetch the events from their corresponding regs */
 	cmdq_stat_reg = hclgevf_read_dev(&hdev->hw,
-					 HCLGEVF_VECTOR0_CMDQ_STAT_REG);
+					 HCLGEVF_VECTOR0_CMDQ_STATE_REG);
 
 	if (BIT(HCLGEVF_VECTOR0_RST_INT_B) & cmdq_stat_reg) {
 		rst_ing_reg = hclgevf_read_dev(&hdev->hw, HCLGEVF_RST_ING);
@@ -2403,7 +2402,7 @@ static int hclgevf_config_gro(struct hclgevf_dev *hdev, bool en)
 				     false);
 	req = (struct hclgevf_cfg_gro_status_cmd *)desc.data;
 
-	req->gro_en = cpu_to_le16(en ? 1 : 0);
+	req->gro_en = en ? 1 : 0;
 
 	ret = hclgevf_cmd_send(&hdev->hw, &desc, 1);
 	if (ret)
@@ -2713,6 +2712,7 @@ static int hclgevf_init_nic_client_instance(struct hnae3_ae_dev *ae_dev,
 					    struct hnae3_client *client)
 {
 	struct hclgevf_dev *hdev = ae_dev->priv;
+	int rst_cnt = hdev->rst_stats.rst_cnt;
 	int ret;
 
 	ret = client->ops->init_instance(&hdev->nic);
@@ -2720,6 +2720,14 @@ static int hclgevf_init_nic_client_instance(struct hnae3_ae_dev *ae_dev,
 		return ret;
 
 	set_bit(HCLGEVF_STATE_NIC_REGISTERED, &hdev->state);
+	if (test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state) ||
+	    rst_cnt != hdev->rst_stats.rst_cnt) {
+		clear_bit(HCLGEVF_STATE_NIC_REGISTERED, &hdev->state);
+
+		client->ops->uninit_instance(&hdev->nic, 0);
+		return -EBUSY;
+	}
+
 	hnae3_set_client_init_flag(client, ae_dev, 1);
 
 	if (netif_msg_drv(&hdev->nic))

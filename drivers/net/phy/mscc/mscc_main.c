@@ -1303,6 +1303,8 @@ static void vsc8584_get_base_addr(struct phy_device *phydev)
 		vsc8531->base_addr = phydev->mdio.addr + addr;
 	else
 		vsc8531->base_addr = phydev->mdio.addr - addr;
+
+	vsc8531->addr = addr;
 }
 
 static int vsc8584_config_init(struct phy_device *phydev)
@@ -1974,6 +1976,10 @@ static int vsc8574_probe(struct phy_device *phydev)
 		return -ENOMEM;
 
 	phydev->priv = vsc8531;
+
+	vsc8584_get_base_addr(phydev);
+	devm_phy_package_join(&phydev->mdio.dev, phydev,
+			      vsc8531->base_addr, 0);
 
 	vsc8531->nleds = 4;
 	vsc8531->supp_led_modes = VSC8584_SUPP_LED_MODES;

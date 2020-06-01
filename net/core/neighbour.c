@@ -1082,8 +1082,8 @@ static void neigh_timer_handler(struct timer_list *t)
 	}
 
 	if (neigh->nud_state & NUD_IN_TIMER) {
-		if (time_before(next, jiffies + HZ/2))
-			next = jiffies + HZ/2;
+		if (time_before(next, jiffies + HZ/100))
+			next = jiffies + HZ/100;
 		if (!mod_timer(&neigh->timer, next))
 			neigh_hold(neigh);
 	}
@@ -1771,6 +1771,7 @@ static struct neigh_table *neigh_find_table(int family)
 }
 
 const struct nla_policy nda_policy[NDA_MAX+1] = {
+	[NDA_UNSPEC]		= { .strict_start_type = NDA_NH_ID },
 	[NDA_DST]		= { .type = NLA_BINARY, .len = MAX_ADDR_LEN },
 	[NDA_LLADDR]		= { .type = NLA_BINARY, .len = MAX_ADDR_LEN },
 	[NDA_CACHEINFO]		= { .len = sizeof(struct nda_cacheinfo) },
@@ -1781,6 +1782,7 @@ const struct nla_policy nda_policy[NDA_MAX+1] = {
 	[NDA_IFINDEX]		= { .type = NLA_U32 },
 	[NDA_MASTER]		= { .type = NLA_U32 },
 	[NDA_PROTOCOL]		= { .type = NLA_U8 },
+	[NDA_NH_ID]		= { .type = NLA_U32 },
 };
 
 static int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh,
