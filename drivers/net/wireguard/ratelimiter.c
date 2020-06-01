@@ -40,8 +40,7 @@ enum {
 
 static void entry_free(struct rcu_head *rcu)
 {
-	kmem_cache_free(entry_cache,
-			container_of(rcu, struct ratelimiter_entry, rcu));
+	kmem_cache_free(entry_cache, container_of(rcu, struct ratelimiter_entry, rcu));
 	atomic_dec(&total_entries);
 }
 
@@ -62,14 +61,12 @@ static void wg_ratelimiter_gc_entries(struct work_struct *work)
 	for (i = 0; i < table_size; ++i) {
 		spin_lock(&table_lock);
 		hlist_for_each_entry_safe(entry, temp, &table_v4[i], hash) {
-			if (unlikely(!work) ||
-			    now - entry->last_time_ns > NSEC_PER_SEC)
+			if (unlikely(!work) || now - entry->last_time_ns > NSEC_PER_SEC)
 				entry_uninit(entry);
 		}
 #if IS_ENABLED(CONFIG_IPV6)
 		hlist_for_each_entry_safe(entry, temp, &table_v6[i], hash) {
-			if (unlikely(!work) ||
-			    now - entry->last_time_ns > NSEC_PER_SEC)
+			if (unlikely(!work) || now - entry->last_time_ns > NSEC_PER_SEC)
 				entry_uninit(entry);
 		}
 #endif
@@ -83,9 +80,8 @@ static void wg_ratelimiter_gc_entries(struct work_struct *work)
 
 bool wg_ratelimiter_allow(struct sk_buff *skb, struct net *net)
 {
-	/* We only take the bottom half of the net pointer, so that we can hash
-	 * 3 words in the end. This way, siphash's len param fits into the final
-	 * u32, and we don't incur an extra round.
+	/* We only take the bottom half of the net pointer, so that we can hash 3 words in the end.
+	 * This way, siphash's len param fits into the final u32, and we don't incur an extra round.
 	 */
 	const u32 net_word = (unsigned long)net;
 	struct ratelimiter_entry *entry;
@@ -94,15 +90,13 @@ bool wg_ratelimiter_allow(struct sk_buff *skb, struct net *net)
 
 	if (skb->protocol == htons(ETH_P_IP)) {
 		ip = (u64 __force)ip_hdr(skb)->saddr;
-		bucket = &table_v4[hsiphash_2u32(net_word, ip, &key) &
-				   (table_size - 1)];
+		bucket = &table_v4[hsiphash_2u32(net_word, ip, &key) & (table_size - 1)];
 	}
 #if IS_ENABLED(CONFIG_IPV6)
 	else if (skb->protocol == htons(ETH_P_IPV6)) {
 		/* Only use 64 bits, so as to ratelimit the whole /64. */
 		memcpy(&ip, &ipv6_hdr(skb)->saddr, sizeof(ip));
-		bucket = &table_v6[hsiphash_3u32(net_word, ip >> 32, ip, &key) &
-				   (table_size - 1)];
+		bucket = &table_v6[hsiphash_3u32(net_word, ip >> 32, ip, &key) & (table_size - 1)];
 	}
 #endif
 	else
@@ -112,16 +106,13 @@ bool wg_ratelimiter_allow(struct sk_buff *skb, struct net *net)
 		if (entry->net == net && entry->ip == ip) {
 			u64 now, tokens;
 			bool ret;
-			/* Quasi-inspired by nft_limit.c, but this is actually a
-			 * slightly different algorithm. Namely, we incorporate
-			 * the burst as part of the maximum tokens, rather than
-			 * as part of the rate.
+			/* Quasi-inspired by nft_limit.c, but this is actually a slightly different
+			 * algorithm. Namely, we incorporate the burst as part of the maximum
+			 * tokens, rather than as part of the rate.
 			 */
 			spin_lock(&entry->lock);
 			now = ktime_get_coarse_boottime_ns();
-			tokens = min_t(u64, TOKEN_MAX,
-				       entry->tokens + now -
-					       entry->last_time_ns);
+			tokens = min_t(u64, TOKEN_MAX, entry->tokens + now - entry->last_time_ns);
 			entry->last_time_ns = now;
 			ret = tokens >= PACKET_COST;
 			entry->tokens = ret ? tokens - PACKET_COST : tokens;
@@ -165,10 +156,10 @@ int wg_ratelimiter_init(void)
 	if (!entry_cache)
 		goto err;
 
-	/* xt_hashlimit.c uses a slightly different algorithm for ratelimiting,
-	 * but what it shares in common is that it uses a massive hashtable. So,
-	 * we borrow their wisdom about good table sizes on different systems
-	 * dependent on RAM. This calculation here comes from there.
+	/* xt_hashlimit.c uses a slightly different algorithm for ratelimiting, but what it shares
+	 * in common is that it uses a massive hashtable. So, we borrow their wisdom about good
+	 * table sizes on different systems dependent on RAM. This calculation here comes from
+	 * there.
 	 */
 	table_size = (totalram_pages() > (1U << 30) / PAGE_SIZE) ? 8192 :
 		max_t(unsigned long, 16, roundup_pow_of_two(

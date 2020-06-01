@@ -111,23 +111,19 @@ bool wg_noise_received_with_keypair(struct noise_keypairs *keypairs,
 				    struct noise_keypair *received_keypair);
 void wg_noise_expire_current_peer_keypairs(struct wg_peer *peer);
 
-void wg_noise_set_static_identity_private_key(
-	struct noise_static_identity *static_identity,
-	const u8 private_key[NOISE_PUBLIC_KEY_LEN]);
+void wg_noise_set_static_identity_private_key(struct noise_static_identity *static_identity,
+					      const u8 private_key[NOISE_PUBLIC_KEY_LEN]);
 void wg_noise_precompute_static_static(struct wg_peer *peer);
 
-bool
-wg_noise_handshake_create_initiation(struct message_handshake_initiation *dst,
-				     struct noise_handshake *handshake);
-struct wg_peer *
-wg_noise_handshake_consume_initiation(struct message_handshake_initiation *src,
-				      struct wg_device *wg);
+bool wg_noise_handshake_create_initiation(struct message_handshake_initiation *dst,
+					  struct noise_handshake *handshake);
+struct wg_peer *wg_noise_handshake_consume_initiation(struct message_handshake_initiation *src,
+						      struct wg_device *wg);
 
 bool wg_noise_handshake_create_response(struct message_handshake_response *dst,
 					struct noise_handshake *handshake);
-struct wg_peer *
-wg_noise_handshake_consume_response(struct message_handshake_response *src,
-				    struct wg_device *wg);
+struct wg_peer *wg_noise_handshake_consume_response(struct message_handshake_response *src,
+						    struct wg_device *wg);
 
 bool wg_noise_handshake_begin_session(struct noise_handshake *handshake,
 				      struct noise_keypairs *keypairs);

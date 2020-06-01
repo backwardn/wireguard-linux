@@ -21,13 +21,12 @@ bool __init wg_packet_counter_selftest(void)
 		spin_lock_init(&counter->lock);        \
 	} while (0)
 #define T_LIM (COUNTER_WINDOW_SIZE + 1)
-#define T(n, v) do {                                                  \
-		++test_num;                                           \
-		if (counter_validate(counter, n) != (v)) {            \
-			pr_err("nonce counter self-test %u: FAIL\n",  \
-			       test_num);                             \
-			success = false;                              \
-		}                                                     \
+#define T(n, v) do {                                                             \
+		++test_num;                                                      \
+		if (counter_validate(counter, n) != (v)) {                       \
+			pr_err("nonce counter self-test %u: FAIL\n", test_num);  \
+			success = false;                                         \
+		}                                                                \
 	} while (0)
 
 	T_INIT;
